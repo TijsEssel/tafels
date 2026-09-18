@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tafels Oefenen met Spraak</title>
+    <title>Tafels Oefenen met Doorlopende Spraak</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -44,7 +44,7 @@
         <!-- Header -->
         <div class="bg-indigo-600 bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-white text-center relative">
             <h1 class="text-3xl font-extrabold tracking-tight">Tafels Oefenen 🎙️</h1>
-            <p class="text-indigo-100 mt-1 text-sm">Oefen je tafels handsfree met slimme spraakherkenning</p>
+            <p class="text-indigo-100 mt-1 text-sm">Doorlopende gespreksmodus & spraakherkenning</p>
         </div>
 
         <!-- Start / Instellingen Scherm -->
@@ -115,13 +115,13 @@
                         <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
                         <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
                     </div>
-                    <p class="text-xs font-bold text-emerald-700 animate-pulse">Luistert geduldig naar jouw antwoord...</p>
-                    <p id="transcript-preview" class="text-xs text-emerald-600 italic mt-0.5">Zeg het getal hardop</p>
+                    <p class="text-xs font-bold text-emerald-700 animate-pulse">In doorlopende gespreksmodus...</p>
+                    <p id="transcript-preview" class="text-xs text-emerald-600 italic mt-0.5">Zeg je antwoord luidop</p>
                 </div>
 
                 <div class="flex gap-2 mb-2">
                     <button type="button" onclick="restartListening()" id="mic-btn" class="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
-                        <span>🎙️ Opnieuw luisteren</span>
+                        <span>🎙️ Microfoon herstarten</span>
                     </button>
                     <button type="button" onclick="repeatQuestion()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-2xl transition-all shadow-sm" title="Vraag herhalen">
                         🔊
@@ -147,7 +147,7 @@
 
     <script>
         let currentMode = 'single';
-        let selectedTable = 13;
+        let selectedTable = 7;
         let currentQuestion = { a: 0, b: 0, answer: 0 };
         let score = 0;
         let total = 0;
@@ -155,6 +155,7 @@
         let appState = 'IDLE'; // 'SPEAKING_QUESTION', 'LISTENING', 'SPEAKING_FEEDBACK'
         let recognition = null;
         let isMicGranted = false;
+        let isSpeaking = false; // Voorkomt dat de app zichzelf of achtergrondgeluiden tijdens het spreken opvangt
 
         // Cijferwoorden mapping voor spraakherkenning in het Nederlands
         const numberMap = {
@@ -190,7 +191,7 @@
             recognition = new SpeechRecognition();
             recognition.lang = 'nl-NL';
             recognition.interimResults = true;
-            recognition.continuous = true; // Zorg dat de herkenning door blijft lopen tot er een correct getal is
+            recognition.continuous = true; // Continue actieve achtergrondherkenning
 
             recognition.onstart = () => {
                 if (appState === 'LISTENING') {
@@ -199,7 +200,13 @@
             };
 
             recognition.onresult = (event) => {
+                // Als de app zelf praat (vraag/feedback), negeer dan alle hoorbare transcripten
+                if (isSpeaking || appState === 'SPEAKING_QUESTION' || appState === 'SPEAKING_FEEDBACK') {
+                    return;
+                }
+                
                 if (appState !== 'LISTENING') return;
+
                 let interimTranscript = '';
                 let finalTranscript = '';
 
@@ -230,8 +237,8 @@
             };
 
             recognition.onend = () => {
-                // Automatisch herstarten zolang we in de luisterstatus zijn, zodat er geen vroege timeout optreedt
-                if (appState === 'LISTENING' && isMicGranted) {
+                // Zorg dat de continue luistermodus altijd actief blijft zolang de oefening loopt
+                if (isMicGranted && appState !== 'IDLE') {
                     try {
                         recognition.start();
                     } catch(e) {}
@@ -239,7 +246,7 @@
             };
         }
 
-        function startListeningSession() {
+        function startPersistentListening() {
             if (!recognition) return;
             appState = 'LISTENING';
             showListeningUI(true);
@@ -248,7 +255,7 @@
             } catch (e) {}
         }
 
-        function stopListeningSession() {
+        function stopListeningUIOnly() {
             showListeningUI(false);
         }
 
@@ -262,7 +269,7 @@
                 indicator.classList.remove('hidden');
                 indicator.classList.add('flex');
                 statusIcon.textContent = "🎙️";
-                statusLabel.textContent = "Luistert geduldig naar jouw antwoord...";
+                statusLabel.textContent = "Gespreksmodus actief: luistert naar antwoord...";
                 statusBanner.className = "mb-4 py-2 px-4 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700 flex items-center justify-center gap-2";
             } else {
                 indicator.classList.remove('flex');
@@ -308,7 +315,7 @@
             const option = document.createElement('option');
             option.value = i;
             option.textContent = `Tafel van ${i}`;
-            if (i === 13) option.selected = true;
+            if (i === 7) option.selected = true;
             tableSelect.appendChild(option);
         }
 
@@ -374,7 +381,7 @@
             appState = 'IDLE';
             document.getElementById('answer-input').value = '';
             document.getElementById('feedback-box').classList.add('hidden');
-            document.getElementById('transcript-preview').textContent = 'Zeg het getal hardop';
+            document.getElementById('transcript-preview').textContent = 'Zeg je antwoord luidop';
             
             let activeTable;
             if (currentMode === 'single') {
@@ -402,11 +409,12 @@
 
         function speakQuestion(text) {
             if (!('speechSynthesis' in window)) {
-                startListeningSession();
+                startPersistentListening();
                 return;
             }
 
             appState = 'SPEAKING_QUESTION';
+            isSpeaking = true; // Markeer dat de app aan het praten is zodat achtergrondgeluiden genegeerd worden
             showSpeakingUI("Bezig met voorlezen...");
             window.speechSynthesis.cancel();
 
@@ -415,12 +423,13 @@
             utterance.rate = 0.95;
 
             utterance.onend = () => {
-                // Pas nadat het voorlezen volledig is afgelopen start het langdurige luisteren
-                startListeningSession();
+                isSpeaking = false;
+                startPersistentListening();
             };
 
             utterance.onerror = () => {
-                startListeningSession();
+                isSpeaking = false;
+                startPersistentListening();
             };
 
             window.speechSynthesis.speak(utterance);
@@ -434,7 +443,7 @@
 
         function restartListening() {
             if (appState === 'SPEAKING_FEEDBACK') return;
-            startListeningSession();
+            startPersistentListening();
         }
 
         function submitTypedAnswer(event) {
@@ -448,10 +457,11 @@
         }
 
         function processAnswer(userAnswer) {
-            if (appState === 'SPEAKING_FEEDBACK') return;
+            if (appState === 'SPEAKING_FEEDBACK' || isSpeaking) return;
             
             appState = 'SPEAKING_FEEDBACK';
-            stopListeningSession();
+            isSpeaking = true; // Blokkade voor achtergrondspraak tijdens feedback
+            stopListeningUIOnly();
             total++;
 
             const isCorrect = (userAnswer === currentQuestion.answer);
@@ -490,21 +500,24 @@
                 utterance.lang = 'nl-NL';
                 utterance.rate = 0.95;
 
-                // Pas nadat de feedback volledig is uitgesproken gaan we naar de volgende som
+                // Pas nadat de feedback volledig is uitgesproken gaan we door naar de volgende som
                 utterance.onend = () => {
+                    isSpeaking = false;
                     setTimeout(() => {
                         generateQuestion();
-                    }, 600);
+                    }, 500);
                 };
 
                 utterance.onerror = () => {
+                    isSpeaking = false;
                     setTimeout(() => {
                         generateQuestion();
-                    }, 600);
+                    }, 500);
                 };
 
                 window.speechSynthesis.speak(utterance);
             } else {
+                isSpeaking = false;
                 setTimeout(() => {
                     generateQuestion();
                 }, 1500);
