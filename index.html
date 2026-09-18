@@ -147,7 +147,7 @@
 
     <script>
         let currentMode = 'single';
-        let selectedTable = 7;
+        let selectedTable = 13;
         let currentQuestion = { a: 0, b: 0, answer: 0 };
         let score = 0;
         let total = 0;
@@ -315,7 +315,7 @@
             const option = document.createElement('option');
             option.value = i;
             option.textContent = `Tafel van ${i}`;
-            if (i === 7) option.selected = true;
+            if (i === 13) option.selected = true;
             tableSelect.appendChild(option);
         }
 
