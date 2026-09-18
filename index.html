@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tafels Oefenen met Spraak</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @keyframes pulse-scale {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse-scale {
+            animation: pulse-scale 0.4s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+        @keyframes wave {
+            0%, 100% { height: 8px; }
+            50% { height: 36px; }
+        }
+        .wave-bar {
+            animation: wave 1.2s infinite ease-in-out;
+        }
+        .wave-bar:nth-child(2) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.4s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-blue-50 to-emerald-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-indigo-100 transition-all duration-300">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-white text-center relative">
+            <h1 class="text-3xl font-extrabold tracking-tight">Tafels Oefenen 🎙️</h1>
+            <p class="text-indigo-100 mt-1 text-sm">Oefen je tafels handsfree met slimme spraakherkenning</p>
+        </div>
+
+        <!-- Start / Instellingen Scherm -->
+        <div id="settings-screen" class="p-8 space-y-6">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Kies de modus:</label>
+                <div class="grid grid-cols-2 gap-4">
+                    <button type="button" id="mode-single" onclick="setMode('single')" class="py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm">
+                        Specifieke Tafel
+                    </button>
+                    <button type="button" id="mode-random" onclick="setMode('random')" class="py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300">
+                        Willekeurig t/m Tafel
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label for="table-select" id="table-label" class="block text-sm font-semibold text-gray-700 mb-2">Welke tafel wil je oefenen? (1 t/m 20):</label>
+                <select id="table-select" class="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-medium transition">
+                    <!-- Opties worden via JS gevuld -->
+                </select>
+            </div>
+
+            <div class="bg-gray-50 rounded-2xl p-4 text-xs text-gray-600 space-y-1 border border-gray-100">
+                <p class="font-bold flex items-center gap-1 text-gray-700">ℹ️ Rekenregels:</p>
+                <p>• <strong>Tafel ≤ 10:</strong> Vermenigvuldigd met 1 t/m 10.</p>
+                <p>• <strong>Tafel > 10:</strong> Vermenigvuldigd tot aan het kwadraat (bijv. 13 × 13).</p>
+            </div>
+
+            <button onclick="requestMicAndStart()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 text-lg">
+                Start met oefenen! 🚀
+            </button>
+        </div>
+
+        <!-- Actief Oefenscherm -->
+        <div id="practice-screen" class="p-8 space-y-6 hidden">
+            <div class="flex justify-between items-center bg-gray-50 px-4 py-3 rounded-2xl border border-gray-100">
+                <div class="text-sm font-semibold text-gray-600">
+                    Score: <span id="score-val" class="text-indigo-600 font-bold">0</span> / <span id="total-val">0</span>
+                </div>
+                <div class="text-sm font-semibold text-gray-600">
+                    🔥 Streak: <span id="streak-val" class="text-amber-500 font-bold">0</span>
+                </div>
+                <button onclick="returnToSettings()" class="text-xs text-gray-500 hover:text-indigo-600 font-medium underline">
+                    Instellingen
+                </button>
+            </div>
+
+            <!-- Vraag Container -->
+            <div id="question-card" class="bg-gradient-to-br from-gray-50 to-indigo-50/40 border border-indigo-100 rounded-3xl p-6 text-center transition-all relative overflow-hidden">
+                <span id="mode-badge" class="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full mb-3">Tafel van 7</span>
+                
+                <div id="question-text" class="text-4xl md:text-5xl font-black text-gray-800 tracking-wider mb-4">
+                    7 × 8 = ?
+                </div>
+
+                <!-- Status indicator -->
+                <div id="status-banner" class="mb-4 py-2 px-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs font-bold text-indigo-700 flex items-center justify-center gap-2">
+                    <span id="status-icon">🔊</span>
+                    <span id="status-label">Bezig met voorlezen...</span>
+                </div>
+
+                <!-- Microfoon Luister Golf Indicator -->
+                <div id="listening-indicator" class="hidden flex-col items-center justify-center my-3 p-3 bg-emerald-50 rounded-2xl border border-emerald-200">
+                    <div class="flex items-center gap-1.5 h-9 mb-1">
+                        <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
+                        <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
+                        <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
+                        <div class="w-1.5 bg-emerald-600 rounded-full wave-bar"></div>
+                    </div>
+                    <p class="text-xs font-bold text-emerald-700 animate-pulse">Luistert geduldig naar jouw antwoord...</p>
+                    <p id="transcript-preview" class="text-xs text-emerald-600 italic mt-0.5">Zeg het getal hardop</p>
+                </div>
+
+                <div class="flex gap-2 mb-2">
+                    <button type="button" onclick="restartListening()" id="mic-btn" class="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold py-3 px-4 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
+                        <span>🎙️ Opnieuw luisteren</span>
+                    </button>
+                    <button type="button" onclick="repeatQuestion()" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 rounded-2xl transition-all shadow-sm" title="Vraag herhalen">
+                        🔊
+                    </button>
+                </div>
+
+                <form id="answer-form" onsubmit="submitTypedAnswer(event)" class="mt-3 flex gap-2">
+                    <input type="number" id="answer-input" autocomplete="off" placeholder="Of typ antwoord" 
+                        class="flex-1 text-center text-xl font-bold bg-white border-2 border-gray-200 rounded-2xl py-3 px-3 text-gray-800 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all shadow-inner">
+                    <button type="submit" id="submit-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-5 rounded-2xl shadow-md transition-all">
+                        ✓
+                    </button>
+                </form>
+            </div>
+
+            <!-- Feedback melding -->
+            <div id="feedback-box" class="hidden text-center p-4 rounded-2xl font-bold text-lg transition-all">
+                <!-- Wordt dynamisch ingevuld -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentMode = 'single';
+        let selectedTable = 7;
+        let currentQuestion = { a: 0, b: 0, answer: 0 };
+        let score = 0;
+        let total = 0;
+        let streak = 0;
+        let appState = 'IDLE'; // 'SPEAKING_QUESTION', 'LISTENING', 'SPEAKING_FEEDBACK'
+        let recognition = null;
+        let isMicGranted = false;
+
+        // Cijferwoorden mapping voor spraakherkenning in het Nederlands
+        const numberMap = {
+            'nul': 0, 'een': 1, 'één': 1, 'twee': 2, 'drie': 3, 'vier': 4,
+            'vijf': 5, 'zes': 6, 'zeven': 7, 'acht': 8, 'negen': 9, 'tien': 10,
+            'elf': 11, 'twaalf': 12, 'dertien': 13, 'veertien': 14, 'vijftien': 15,
+            'zestien': 16, 'zeventien': 17, 'achttien': 18, 'negentien': 19, 'twintig': 20,
+            'eenentwintig': 21, 'tweeëntwintig': 22, 'drieëntwintig': 23, 'vierentwintig': 24,
+            'vijfentwintig': 25, 'zesentwintig': 26, 'zevenentwintig': 27, 'achtentwintig': 28,
+            'negenentwintig': 29, 'dertig': 30, 'eenendertig': 31, 'tweeëndertig': 32,
+            'drieëndertig': 33, 'vierendertig': 34, 'vijfendertig': 35, 'zesendertig': 36,
+            'zevenendertig': 37, 'achtendertig': 38, 'negenendertig': 39, 'veertig': 40,
+            'eenenveertig': 41, 'tweeënveertig': 42, 'drieënveertig': 43, 'vierenveertig': 44,
+            'vijfenveertig': 45, 'zesenveertig': 46, 'zevenenveertig': 47, 'achtenveertig': 48,
+            'negenenveertig': 49, 'vijftig': 50, 'eenenvijftig': 51, 'tweeënvijftig': 52,
+            'drieënvijftig': 53, 'vierenvijftig': 54, 'vijfenvijftig': 55, 'zesenvijftig': 56,
+            'zevenenvijftig': 57, 'achtenvijftig': 58, 'negenenvijftig': 59, 'zestig': 60,
+            'eenenzestig': 61, 'tweeënzestig': 62, 'drieënzestig': 63, 'vierenzestig': 64,
+            'vijfenzestig': 65, 'zesenzestig': 66, 'zevenenzestig': 67, 'achtenzestig': 68,
+            'negenenzestig': 69, 'zeventig': 70, 'eenenzeventig': 71, 'tweeënzeventig': 72,
+            'drieënzeventig': 73, 'vierenzeventig': 74, 'vijfenzeventig': 75, 'zesenzeventig': 76,
+            'zevenenzeventig': 77, 'achtenzeventig': 78, 'negenenzeventig': 79, 'tachtig': 80,
+            'eenentachtig': 81, 'tweeëntachtig': 82, 'drieëntachtig': 83, 'vierentachtig': 84,
+            'vijfentachtig': 85, 'zesentachtig': 86, 'zevenentachtig': 87, 'achtentachtig': 88,
+            'negenentachtig': 89, 'negentig': 90, 'negenennegentig': 99, 'honderd': 100,
+            'honderdelf': 111, 'honderdtwaalf': 112, 'honderddertien': 113, 'honderdveertien': 114,
+            'honderdvijftien': 115, 'honderdzestien': 116, 'honderdzeventien': 117, 'honderdachttien': 118,
+            'honderdnegentien': 119, 'honderdtwintig': 120, 'tweehonderd': 200
+        };
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'nl-NL';
+            recognition.interimResults = true;
+            recognition.continuous = true; // Zorg dat de herkenning door blijft lopen tot er een correct getal is
+
+            recognition.onstart = () => {
+                if (appState === 'LISTENING') {
+                    showListeningUI(true);
+                }
+            };
+
+            recognition.onresult = (event) => {
+                if (appState !== 'LISTENING') return;
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                const preview = finalTranscript || interimTranscript;
+                if (preview) {
+                    document.getElementById('transcript-preview').textContent = `Gehoord: "${preview}"`;
+                }
+
+                if (finalTranscript) {
+                    const parsedNumber = parseSpokenNumber(finalTranscript);
+                    if (parsedNumber !== null) {
+                        document.getElementById('answer-input').value = parsedNumber;
+                        processAnswer(parsedNumber);
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.warn('Spraakherkenning melding:', event.error);
+            };
+
+            recognition.onend = () => {
+                // Automatisch herstarten zolang we in de luisterstatus zijn, zodat er geen vroege timeout optreedt
+                if (appState === 'LISTENING' && isMicGranted) {
+                    try {
+                        recognition.start();
+                    } catch(e) {}
+                }
+            };
+        }
+
+        function startListeningSession() {
+            if (!recognition) return;
+            appState = 'LISTENING';
+            showListeningUI(true);
+            try {
+                recognition.start();
+            } catch (e) {}
+        }
+
+        function stopListeningSession() {
+            showListeningUI(false);
+        }
+
+        function showListeningUI(isListening) {
+            const indicator = document.getElementById('listening-indicator');
+            const statusLabel = document.getElementById('status-label');
+            const statusIcon = document.getElementById('status-icon');
+            const statusBanner = document.getElementById('status-banner');
+
+            if (isListening) {
+                indicator.classList.remove('hidden');
+                indicator.classList.add('flex');
+                statusIcon.textContent = "🎙️";
+                statusLabel.textContent = "Luistert geduldig naar jouw antwoord...";
+                statusBanner.className = "mb-4 py-2 px-4 rounded-xl bg-emerald-50 border border-emerald-100 text-xs font-bold text-emerald-700 flex items-center justify-center gap-2";
+            } else {
+                indicator.classList.remove('flex');
+                indicator.classList.add('hidden');
+            }
+        }
+
+        function showSpeakingUI(text) {
+            const statusLabel = document.getElementById('status-label');
+            const statusIcon = document.getElementById('status-icon');
+            const statusBanner = document.getElementById('status-banner');
+            statusIcon.textContent = "🔊";
+            statusLabel.textContent = text;
+            statusBanner.className = "mb-4 py-2 px-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs font-bold text-indigo-700 flex items-center justify-center gap-2";
+        }
+
+        function parseSpokenNumber(text) {
+            text = text.toLowerCase().trim();
+            text = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"");
+            
+            const digitsMatch = text.match(/\d+/);
+            if (digitsMatch) {
+                return parseInt(digitsMatch[0], 10);
+            }
+
+            if (numberMap[text] !== undefined) {
+                return numberMap[text];
+            }
+
+            const words = text.split(/\s+/);
+            for (const word of words) {
+                if (numberMap[word] !== undefined) {
+                    return numberMap[word];
+                }
+            }
+
+            return null;
+        }
+
+        // Dropdown vullen
+        const tableSelect = document.getElementById('table-select');
+        for (let i = 1; i <= 20; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `Tafel van ${i}`;
+            if (i === 7) option.selected = true;
+            tableSelect.appendChild(option);
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btnSingle = document.getElementById('mode-single');
+            const btnRandom = document.getElementById('mode-random');
+            const label = document.getElementById('table-label');
+
+            if (mode === 'single') {
+                btnSingle.className = "py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm";
+                btnRandom.className = "py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300";
+                label.textContent = "Welke tafel wil je oefenen? (1 t/m 20):";
+            } else {
+                btnRandom.className = "py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm";
+                btnSingle.className = "py-3 px-4 rounded-xl border-2 font-medium text-center transition-all border-gray-200 bg-white text-gray-600 hover:border-gray-300";
+                label.textContent = "Willekeurig oefenen tot en met tafel: (1 t/m 20):";
+            }
+        }
+
+        function requestMicAndStart() {
+            selectedTable = parseInt(tableSelect.value);
+            score = 0;
+            total = 0;
+            streak = 0;
+            updateStats();
+
+            // Éénmalige toestemming aanvragen bij de start
+            if (recognition) {
+                try {
+                    isMicGranted = true;
+                    recognition.start();
+                    setTimeout(() => {
+                        launchPractice();
+                    }, 300);
+                } catch(e) {
+                    isMicGranted = true;
+                    launchPractice();
+                }
+            } else {
+                launchPractice();
+            }
+        }
+
+        function launchPractice() {
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('practice-screen').classList.remove('hidden');
+            generateQuestion();
+        }
+
+        function returnToSettings() {
+            isMicGranted = false;
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+            }
+            window.speechSynthesis.cancel();
+            appState = 'IDLE';
+            document.getElementById('practice-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.remove('hidden');
+        }
+
+        function generateQuestion() {
+            appState = 'IDLE';
+            document.getElementById('answer-input').value = '';
+            document.getElementById('feedback-box').classList.add('hidden');
+            document.getElementById('transcript-preview').textContent = 'Zeg het getal hardop';
+            
+            let activeTable;
+            if (currentMode === 'single') {
+                activeTable = selectedTable;
+                document.getElementById('mode-badge').textContent = `Tafel van ${activeTable}`;
+            } else {
+                activeTable = Math.floor(Math.random() * selectedTable) + 1;
+                document.getElementById('mode-badge').textContent = `Willekeurig (t/m ${selectedTable})`;
+            }
+
+            let maxMultiplier = activeTable <= 10 ? 10 : activeTable;
+            let multiplier = Math.floor(Math.random() * maxMultiplier) + 1;
+
+            currentQuestion = {
+                a: activeTable,
+                b: multiplier,
+                answer: activeTable * multiplier
+            };
+
+            document.getElementById('question-text').textContent = `${currentQuestion.a} × ${currentQuestion.b} = ?`;
+            
+            const spokenText = `Wat is ${currentQuestion.a} maal ${currentQuestion.b}?`;
+            speakQuestion(spokenText);
+        }
+
+        function speakQuestion(text) {
+            if (!('speechSynthesis' in window)) {
+                startListeningSession();
+                return;
+            }
+
+            appState = 'SPEAKING_QUESTION';
+            showSpeakingUI("Bezig met voorlezen...");
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'nl-NL';
+            utterance.rate = 0.95;
+
+            utterance.onend = () => {
+                // Pas nadat het voorlezen volledig is afgelopen start het langdurige luisteren
+                startListeningSession();
+            };
+
+            utterance.onerror = () => {
+                startListeningSession();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function repeatQuestion() {
+            if (appState === 'SPEAKING_FEEDBACK') return;
+            const spokenText = `Wat is ${currentQuestion.a} maal ${currentQuestion.b}?`;
+            speakQuestion(spokenText);
+        }
+
+        function restartListening() {
+            if (appState === 'SPEAKING_FEEDBACK') return;
+            startListeningSession();
+        }
+
+        function submitTypedAnswer(event) {
+            event.preventDefault();
+            if (appState === 'SPEAKING_FEEDBACK' || appState === 'SPEAKING_QUESTION') return;
+
+            const inputVal = document.getElementById('answer-input').value.trim();
+            if (inputVal === '') return;
+
+            processAnswer(parseInt(inputVal, 10));
+        }
+
+        function processAnswer(userAnswer) {
+            if (appState === 'SPEAKING_FEEDBACK') return;
+            
+            appState = 'SPEAKING_FEEDBACK';
+            stopListeningSession();
+            total++;
+
+            const isCorrect = (userAnswer === currentQuestion.answer);
+            const card = document.getElementById('question-card');
+            const feedbackBox = document.getElementById('feedback-box');
+
+            feedbackBox.classList.remove('hidden');
+
+            let feedbackUtteranceText = '';
+
+            if (isCorrect) {
+                score++;
+                streak++;
+                card.classList.add('animate-pulse-scale');
+                setTimeout(() => card.classList.remove('animate-pulse-scale'), 400);
+
+                feedbackBox.className = "text-center p-4 rounded-2xl font-bold text-lg bg-emerald-50 text-emerald-700 border border-emerald-200";
+                feedbackBox.textContent = "Goed! 🎉";
+                feedbackUtteranceText = "Goed";
+            } else {
+                streak = 0;
+                card.classList.add('animate-shake');
+                setTimeout(() => card.classList.remove('animate-shake'), 400);
+
+                feedbackBox.className = "text-center p-4 rounded-2xl font-bold text-lg bg-rose-50 text-rose-700 border border-rose-200";
+                feedbackBox.textContent = `Fout! Het juiste antwoord is ${currentQuestion.answer}.`;
+                feedbackUtteranceText = `Fout. Het juiste antwoord is ${currentQuestion.answer}`;
+            }
+
+            updateStats();
+            showSpeakingUI("Geef feedback...");
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(feedbackUtteranceText);
+                utterance.lang = 'nl-NL';
+                utterance.rate = 0.95;
+
+                // Pas nadat de feedback volledig is uitgesproken gaan we naar de volgende som
+                utterance.onend = () => {
+                    setTimeout(() => {
+                        generateQuestion();
+                    }, 600);
+                };
+
+                utterance.onerror = () => {
+                    setTimeout(() => {
+                        generateQuestion();
+                    }, 600);
+                };
+
+                window.speechSynthesis.speak(utterance);
+            } else {
+                setTimeout(() => {
+                    generateQuestion();
+                }, 1500);
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('score-val').textContent = score;
+            document.getElementById('total-val').textContent = total;
+            document.getElementById('streak-val').textContent = streak;
+        }
+    </script>
+</body>
+</html>
